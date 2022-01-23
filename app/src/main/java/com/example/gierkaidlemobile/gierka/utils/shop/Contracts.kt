@@ -22,6 +22,7 @@ class Contracts {
      * Zwiększa ilość kliknięć/sekunde wymaganych do wypełnienia kontraktu
      */
     private fun increaseDifficulty() {
+        timesSucceeded=0
         val oldHard = hardMode
         val oldMedium = mediumMode
         hardMode += 2
@@ -33,6 +34,7 @@ class Contracts {
      * Zmniejsza ilość kliknięć/sekunde wymaganych do wypełnienia kontraktu
      */
     private fun decreaseDifficulty(){
+        timesFailed=0
         if(easyMode - 2 > 1){
             val oldEasy = easyMode
             val oldMedium = mediumMode

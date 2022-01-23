@@ -26,13 +26,13 @@ class IdleGame: Game() {
     lateinit var screenBackgroundTexture : Texture
 
     override fun create() {
-        skinFile = Gdx.files.internal("assets/uiskin.json")
-        screenBackgroundTexture = Texture(Gdx.files.internal("assets/B_Office.png"))
+        skinFile = Gdx.files.internal("uiskin.json")
+        screenBackgroundTexture = Texture(Gdx.files.internal("b_office.png"))
 
         batch = SpriteBatch()
         font = BitmapFont()
         camera = OrthographicCamera()
-        camera.setToOrtho(false, screenWidth.toFloat(), screenHeight.toFloat())
+        camera.setToOrtho(false, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
 
         Scene2DSkin.defaultSkin = Skin(skinFile)
 
@@ -45,7 +45,7 @@ class IdleGame: Game() {
     }
 
     override fun dispose() {
-        gameScreen.dispose()
+        screen.dispose()
         batch.dispose()
         font.dispose()
         screenBackgroundTexture.dispose()

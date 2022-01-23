@@ -1,5 +1,4 @@
 package gamestate
-import com.mongodb.event.CommandSucceededEvent
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
 import utils.shop.Contracts
@@ -9,16 +8,16 @@ import kotlin.collections.ArrayList
 
 @Serializable
 data class GamestateData(
-        var upgrades: ArrayList<IntArray>,
-        var linesOfCode: IntArray,
-        var linesPerSecond: Int,
-        var linesPerClick: Int,
-        var contracts: Contracts,
-        var team: Team,
-        val linesPerSecondDefault: Int,
-        val linesPerClickDefault: Int,
-        var money: Int,
-        var caffeine: Int
+    var upgrades: ArrayList<IntArray>,
+    var linesOfCode: IntArray,
+    var linesPerSecond: Int,
+    var linesPerClick: Int,
+    var contracts: Contracts,
+    var team: Team,
+    val linesPerSecondDefault: Int,
+    val linesPerClickDefault: Int,
+    var money: Int,
+    var caffeine: Int
 
 ) {
     override fun equals(other: Any?): Boolean {

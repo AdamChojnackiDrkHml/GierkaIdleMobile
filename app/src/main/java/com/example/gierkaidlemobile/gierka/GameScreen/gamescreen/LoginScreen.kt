@@ -2,6 +2,7 @@ package GameScreen.gamescreen
 
 import Database.DatabaseUtils
 import GameScreen.IdleGame
+import android.util.Log
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Screen
 import com.badlogic.gdx.graphics.Color
@@ -88,8 +89,8 @@ class LoginScreen(private val game: IdleGame) : Screen {
 
         try {
             DatabaseUtils.database_login(login, password)
-            game.setGameScreen("game")
             TaskManager.startTasks()
+            game.setGameScreen("game")
         } catch(e: Exception) {
             infoLabel.color = Color.FIREBRICK
             infoLabel.setText(e.message)

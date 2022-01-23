@@ -25,10 +25,9 @@ class Upgrades {
          */
         fun getNames(): Array<String> {
             return arrayOf(
-                "Inteligentne IDE\nLinijki na klik.",
-                "Podswietlana klawiatura\nModyfikator linijek na klik.",
-                "Zmysl developera\nSzansa na krytyczne klik.",
                 "Uczenie maszynowe\nLinijki na sek.",
+                "Podswietlana klawiatura\nModyfikator linijek na klik.",
+                "Zmysl developera\nSzansa na krytyczne kliknięcie.",
                 "Korpo szkolenia\nModyfikator linijek na sek. Zespolu",
                 "Rozbudowa biura\nMiejsce na dodatkowego programiste w Zespole",
                 "Udzialy na gieldzie\nModyfikator kasy za projekty",

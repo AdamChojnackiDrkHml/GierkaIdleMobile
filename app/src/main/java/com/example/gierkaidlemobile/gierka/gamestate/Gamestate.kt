@@ -157,7 +157,7 @@ class Gamestate internal constructor() {
     /**
      * Dodaje bierny przychód do całkowitej ilości
      */
-    fun addPassiveIncome(amount: Int){
+    fun addPassiveIncome(){
         updateTotal(gamestateData.linesPerSecond)
     }
 
@@ -166,8 +166,7 @@ class Gamestate internal constructor() {
      * @param times_clicked ilość kliknięć w danym interwale czasowym
      *
      */
-    fun setGamestate(lines_per_click: Int, times_clicked: Int) {
-//        gamestateData.linesPerClick = lines_per_click
+    fun setGamestate(times_clicked: Int) {
         calculateLPC()
         this.timesClicked = times_clicked
         updateTotal(calculateAmount(false))
@@ -196,17 +195,37 @@ class Gamestate internal constructor() {
     }
 
 
+    fun getContractCost(contractDifficulty: Int):Int{
+        calculateLPC()
+        return when(contractDifficulty){
+            0 -> contractTime*gamestateData.contracts.easyMode*gamestateData.linesPerClick
+            1 -> contractTime*gamestateData.contracts.mediumMode*gamestateData.linesPerClick
+            2 -> contractTime*gamestateData.contracts.hardMode*gamestateData.linesPerClick
+            else -> 0
+        }
+    }
+
     /**
      * Zaczyna aktywność kontraktu
      * @param contractDifficulty wybrany poziom trudności kontraktu przekazywany przez główny wątek
      * @return wartość kontraktu
      */
     fun startContract(contractDifficulty: Int):Int{
+        calculateLPC()
         this.contractDifficulty = contractDifficulty
         return when(contractDifficulty){
-            0 -> contractTime * gamestateData.contracts.easyMode
-            1 -> contractTime * gamestateData.contracts.mediumMode
-            2 -> contractTime * gamestateData.contracts.hardMode
+            0 ->{
+                deductCode(contractTime*gamestateData.contracts.easyMode*gamestateData.linesPerClick)
+                contractTime * gamestateData.contracts.easyMode
+            }
+            1 ->{
+                deductCode(contractTime*gamestateData.contracts.mediumMode*gamestateData.linesPerClick)
+                contractTime * gamestateData.contracts.mediumMode
+            }
+            2 ->{
+                deductCode(contractTime*gamestateData.contracts.hardMode*gamestateData.linesPerClick)
+                contractTime * gamestateData.contracts.hardMode
+            }
 
             else -> 0
         }
@@ -217,16 +236,20 @@ class Gamestate internal constructor() {
      * @param result rezultat kontraktu (powodzenie/porażka)
      * @param times_clicked ilość kliknięć, używana gdy kontrakt sie nie udał
      */
-    fun endContract(result: Boolean, times_clicked: Int){
+    fun endContract(result: Boolean){
         if(result){
             gamestateData.contracts.timesSucceeded++
-            updateTotal(calculateAmount(true))
+//            updateTotal(calculateAmount(true))
+            when(contractDifficulty){
+                0 -> calculateMoney(150)
+                1 -> calculateMoney(200)
+                2 -> calculateMoney(250)
+            }
             gamestateData.contracts.checkDiff()
         }
         else{
             gamestateData.contracts.timesFailed++
-            this.timesClicked = times_clicked
-            updateTotal(calculateAmount(false))
+//            updateTotal(calculateAmount(false))
             gamestateData.contracts.checkDiff()
         }
     }
@@ -273,7 +296,7 @@ class Gamestate internal constructor() {
             temp /= 10
             iterator++
         }
-        println("TEMP: $temp")
+        //println("TEMP: $temp")
         while (true) {
             var fixed = true
             for (j in gamestateData.linesOfCode) {
@@ -573,21 +596,36 @@ class Gamestate internal constructor() {
         if(checkIfEnoughResourceToBuy("money",programmer.getPrice())&&checkProgrammerSpace()){
             deductMoney(programmer.getPrice())
             gamestateData.team.team_addMember(programmer)
+            calculateLPS()
             return true
         }
         return false
 
     }
 
+    fun buyCaffeine(amount: Int, moneyAmount: Int):Boolean{
+        if(checkIfEnoughResourceToBuy("money",moneyAmount)){
+            deductMoney(moneyAmount)
+            calculateCaffeine(amount)
+            return true
+        }
+        return false
+    }
+
+    fun buyContract(difficulty : Int) : Boolean {
+        return checkIfEnoughResourceToBuy("code", getContractCost(difficulty))
+    }
+
+
     fun getUpgradesNames(): Array<String> {
         return arrayOf(
-                "Uczenie maszynowe\nLinijki na sek.",
-                "Podswietlana klawiatura\nModyfikator linijek na klik.",
-                "Zmysl developera\nSzansa na krytyczne kliknięcie.",
-                "Korpo szkolenia\nModyfikator linijek na sek. Zespolu",
-                "Rozbudowa biura\nMiejsce na dodatkowego programiste w Zespole",
-                "Udzialy na gieldzie\nModyfikator kasy za projekty",
-                "Dealer ziaren\nModyfikator kupowanej kofeiny"
+            "Uczenie maszynowe\nLinijki na sek.",
+            "Podswietlana klawiatura\nModyfikator linijek na klik.",
+            "Zmysl developera\nSzansa na krytyczne kliknięcie.",
+            "Korpo szkolenia\nModyfikator linijek na sek. Zespolu",
+            "Rozbudowa biura\nMiejsce na dodatkowego programiste w Zespole",
+            "Udzialy na gieldzie\nModyfikator kasy za projekty",
+            "Dealer ziaren\nModyfikator kupowanej kofeiny"
         )
     }
 
@@ -607,114 +645,172 @@ class Gamestate internal constructor() {
 
 
 
-
 }
+
 
 
 
 /**
  * Main stworzony do testowania poprawności działania funkcji
  *
- */
-//fun main() {
-//
-//    val gamestate = Gamestate()
-//    gamestate.setDefaultValues()
-//
-//    for(i in 0..9){
-//        gamestate.setGamestate(20, 11)
-//        println(gamestate.getGamestate())
-//        println("----------------------------")
-//
-//    }
-//
-////    val upgrades: BooleanArray = booleanArrayOf(false,false,false,false,false,false,false,true)
-////    gamestate.changeUpgrades(upgrades)
-//    for(i in 0..10){
-//        gamestate.setGamestate(20, 11)
-//        println(gamestate.getGamestate())
-//    }
-//    println("--------------------------")
-//    println(gamestate.toJson())
-//    println(gamestate.gamestateData.linesPerClick)
-////    gamestate.startContract(2)
-////    gamestate.endContract(false,750)
-////    gamestate.endContract(false,750)
-////    gamestate.endContract(false,750)
-////    gamestate.endContract(false,750)
-//    println(gamestate.getGamestate())
-//    val js = gamestate.toJson()
-//    gamestate.fromJson(js)
-//    println(gamestate.toJson())
-//    println(gamestate.gamestateData.contracts.easyMode)
-//    gamestate.calculateLPS()
-//    println(gamestate.getGamestate())
-//    gamestate.updateTotal(200)
-//    println(gamestate.getGamestate())
-//    gamestate.updateTotal(200)
-//    gamestate.calculateCaffeine(500)
-//    gamestate.calculateMoney(700)
-//    println(gamestate.getGamestate())
-//    println(gamestate.toJson())
-//    println(gamestate.purchaseUpgradeFromStore(1,gamestate.gamestateData.upgrades[1][3]))
-//    println(gamestate.toJson())
-//    println(gamestate.purchaseUpgradeFromStore(1,gamestate.gamestateData.upgrades[1][3]))
-//    println(gamestate.toJson())
-//    println(gamestate.purchaseUpgradeFromStore(1,gamestate.gamestateData.upgrades[1][3]))
-//    println(gamestate.toJson())
-//    println(gamestate.purchaseUpgradeFromStore(1,gamestate.gamestateData.upgrades[1][3]))
-//    println(gamestate.toJson())
-////    println(gamestate.purchaseUpgradeFromStore(0,100,100,100))
-////    println(gamestate.toJson())
-//////    println(gamestate.purchaseUpgradeFromStore(2,100,100,100))
-//    gamestate.calculateCaffeine(500)
-//    gamestate.calculateMoney(700)
-////    println(gamestate.toJson())
-////    println(gamestate.purchaseUpgradeFromStore(3,100,100,100))
-////    println(gamestate.toJson())
-////    println(gamestate.purchaseUpgradeFromStore(4,100,100,100))
-////    println(gamestate.toJson())
-////    println(gamestate.purchaseUpgradeFromStore(5,100,100,100))
-////    gamestate.calculateCaffeine(500)
-////    println(gamestate.toJson())
-////    println(gamestate.purchaseUpgradeFromStore(6,100,100,100))
-////    println(gamestate.toJson())
-////    println(gamestate.purchaseUpgradeFromStore(1,100,100,100))
-////    println(gamestate.toJson())
-////    println(gamestate.getGamestate())
-////    gamestate.calculateCaffeine(500)
-////    println(gamestate.toJson())
-////    gamestate.calculateCaffeine(500)
-////    gamestate.deductCode(200)
-////    println(gamestate.getGamestate())
-////
-////    gamestate.setDefaultUpgrades()
-//
-////    println(gamestate.gamestateData)
-////
-////
-////
-////    var string = gamestate.toJson()
-////    println(string)
-////    string="""{"upgrades":[false,false,true,true,false,false,false,true],"upgradesValue":[30,80,120,200,450,670,900,1340],"linesOfCode":[0,6,3,0,2,0,0,0,0,0],"linesPerSecond":1340,"linesPerClick":20}"""
-////    gamestate.fromJson(string)
-////    println(gamestate.gamestateData)
-////    println(gamestate.toJson())
-////    println(gamestate.gamestateData.contracts)
-//////    gamestate.gamestateData.contracts.increaseDifficulty()
-//////    println(gamestate.gamestateData.contracts.easyMode)
-//////    println(gamestate.gamestateData.contracts.mediumMode)
-//////    println(gamestate.gamestateData.contracts.hardMode)
-//////    println(gamestate.gamestateData.contracts.timesFailed)
-//////    println(gamestate.gamestateData.contracts.timesSucceeded)
-//////
-//////    println(gamestate.gamestateData.contracts.easyMode)
-//////    println(gamestate.gamestateData.contracts.mediumMode)
-//////    println(gamestate.gamestateData.contracts.hardMode)
-//////    println(gamestate.gamestateData.contracts.timesFailed)
-//////    println(gamestate.gamestateData.contracts.timesSucceeded)
-////
-////    gamestate.gamestateData.team.team_addMember(Programmer(1))
-////    gamestate.gamestateData.team.team_addMember(Programmer(2))
-//    println(gamestate.toJson())
-//}
+//  */
+// <<<<<<< kacper_mainloop
+// fun main() {
+
+//     val gamestate = Gamestate()
+//     gamestate.setDefaultValues()
+
+//     for(i in 0..9){
+//         gamestate.setGamestate(11)
+//         println(gamestate.getGamestate())
+//         println("----------------------------")
+
+//     }
+
+// //    val upgrades: BooleanArray = booleanArrayOf(false,false,false,false,false,false,false,true)
+// //    gamestate.changeUpgrades(upgrades)
+//     for(i in 0..10){
+//         gamestate.setGamestate(11)
+//         println(gamestate.getGamestate())
+//     }
+//     println("--------------------------")
+//     println(gamestate.toJson())
+//     println(gamestate.gamestateData.linesPerClick)
+// //    gamestate.startContract(2)
+// //    gamestate.endContract(false,750)
+// //    gamestate.endContract(false,750)
+// //    gamestate.endContract(false,750)
+// //    gamestate.endContract(false,750)
+//     println(gamestate.getGamestate())
+//     val js = gamestate.toJson()
+//     gamestate.fromJson(js)
+//     println(gamestate.toJson())
+//     println(gamestate.gamestateData.contracts.easyMode)
+//     gamestate.calculateLPS()
+//     println(gamestate.getGamestate())
+//     gamestate.updateTotal(200)
+//     println(gamestate.getGamestate())
+//     gamestate.updateTotal(200)
+//     gamestate.calculateCaffeine(500)
+//     gamestate.calculateMoney(700)
+//     println(gamestate.getGamestate())
+//     println(gamestate.toJson())
+//     println(gamestate.purchaseUpgradeFromStore(1,gamestate.gamestateData.upgrades[1][3]))
+//     println(gamestate.toJson())
+//     println(gamestate.purchaseUpgradeFromStore(1,gamestate.gamestateData.upgrades[1][3]))
+//     println(gamestate.toJson())
+//     println(gamestate.purchaseUpgradeFromStore(1,gamestate.gamestateData.upgrades[1][3]))
+//     println(gamestate.toJson())
+//     println(gamestate.purchaseUpgradeFromStore(1,gamestate.gamestateData.upgrades[1][3]))
+//     println(gamestate.toJson())
+// //    println(gamestate.purchaseUpgradeFromStore(0,100,100,100))
+// //    println(gamestate.toJson())
+// ////    println(gamestate.purchaseUpgradeFromStore(2,100,100,100))
+//     gamestate.calculateCaffeine(500)
+//     gamestate.calculateMoney(700)
+// //    println(gamestate.toJson())
+// //    println(gamestate.purchaseUpgradeFromStore(3,100,100,100))
+// =======
+// //fun main() {
+// //
+// //    val gamestate = Gamestate()
+// //    gamestate.setDefaultValues()
+// //
+// //    for(i in 0..9){
+// //        gamestate.setGamestate(20, 11)
+// //        println(gamestate.getGamestate())
+// //        println("----------------------------")
+// //
+// //    }
+// //
+// ////    val upgrades: BooleanArray = booleanArrayOf(false,false,false,false,false,false,false,true)
+// ////    gamestate.changeUpgrades(upgrades)
+// //    for(i in 0..10){
+// //        gamestate.setGamestate(20, 11)
+// //        println(gamestate.getGamestate())
+// //    }
+// //    println("--------------------------")
+// >>>>>>> main
+// //    println(gamestate.toJson())
+// //    println(gamestate.gamestateData.linesPerClick)
+// ////    gamestate.startContract(2)
+// ////    gamestate.endContract(false,750)
+// ////    gamestate.endContract(false,750)
+// ////    gamestate.endContract(false,750)
+// ////    gamestate.endContract(false,750)
+// //    println(gamestate.getGamestate())
+// //    val js = gamestate.toJson()
+// //    gamestate.fromJson(js)
+// //    println(gamestate.toJson())
+// //    println(gamestate.gamestateData.contracts.easyMode)
+// //    gamestate.calculateLPS()
+// //    println(gamestate.getGamestate())
+// //    gamestate.updateTotal(200)
+// //    println(gamestate.getGamestate())
+// //    gamestate.updateTotal(200)
+// //    gamestate.calculateCaffeine(500)
+// //    gamestate.calculateMoney(700)
+// //    println(gamestate.getGamestate())
+// //    println(gamestate.toJson())
+// //    println(gamestate.purchaseUpgradeFromStore(1,gamestate.gamestateData.upgrades[1][3]))
+// //    println(gamestate.toJson())
+// //    println(gamestate.purchaseUpgradeFromStore(1,gamestate.gamestateData.upgrades[1][3]))
+// //    println(gamestate.toJson())
+// //    println(gamestate.purchaseUpgradeFromStore(1,gamestate.gamestateData.upgrades[1][3]))
+// //    println(gamestate.toJson())
+// //    println(gamestate.purchaseUpgradeFromStore(1,gamestate.gamestateData.upgrades[1][3]))
+// //    println(gamestate.toJson())
+// ////    println(gamestate.purchaseUpgradeFromStore(0,100,100,100))
+// ////    println(gamestate.toJson())
+// //////    println(gamestate.purchaseUpgradeFromStore(2,100,100,100))
+// //    gamestate.calculateCaffeine(500)
+// //    gamestate.calculateMoney(700)
+// ////    println(gamestate.toJson())
+// ////    println(gamestate.purchaseUpgradeFromStore(3,100,100,100))
+// ////    println(gamestate.toJson())
+// ////    println(gamestate.purchaseUpgradeFromStore(4,100,100,100))
+// ////    println(gamestate.toJson())
+// ////    println(gamestate.purchaseUpgradeFromStore(5,100,100,100))
+// ////    gamestate.calculateCaffeine(500)
+// ////    println(gamestate.toJson())
+// ////    println(gamestate.purchaseUpgradeFromStore(6,100,100,100))
+// ////    println(gamestate.toJson())
+// ////    println(gamestate.purchaseUpgradeFromStore(1,100,100,100))
+// ////    println(gamestate.toJson())
+// ////    println(gamestate.getGamestate())
+// ////    gamestate.calculateCaffeine(500)
+// ////    println(gamestate.toJson())
+// ////    gamestate.calculateCaffeine(500)
+// ////    gamestate.deductCode(200)
+// ////    println(gamestate.getGamestate())
+// ////
+// ////    gamestate.setDefaultUpgrades()
+// //
+// ////    println(gamestate.gamestateData)
+// ////
+// ////
+// ////
+// ////    var string = gamestate.toJson()
+// ////    println(string)
+// ////    string="""{"upgrades":[false,false,true,true,false,false,false,true],"upgradesValue":[30,80,120,200,450,670,900,1340],"linesOfCode":[0,6,3,0,2,0,0,0,0,0],"linesPerSecond":1340,"linesPerClick":20}"""
+// ////    gamestate.fromJson(string)
+// ////    println(gamestate.gamestateData)
+// ////    println(gamestate.toJson())
+// ////    println(gamestate.gamestateData.contracts)
+// //////    gamestate.gamestateData.contracts.increaseDifficulty()
+// //////    println(gamestate.gamestateData.contracts.easyMode)
+// //////    println(gamestate.gamestateData.contracts.mediumMode)
+// //////    println(gamestate.gamestateData.contracts.hardMode)
+// //////    println(gamestate.gamestateData.contracts.timesFailed)
+// //////    println(gamestate.gamestateData.contracts.timesSucceeded)
+// //////
+// //////    println(gamestate.gamestateData.contracts.easyMode)
+// //////    println(gamestate.gamestateData.contracts.mediumMode)
+// //////    println(gamestate.gamestateData.contracts.hardMode)
+// //////    println(gamestate.gamestateData.contracts.timesFailed)
+// //////    println(gamestate.gamestateData.contracts.timesSucceeded)
+// ////
+// ////    gamestate.gamestateData.team.team_addMember(Programmer(1))
+// ////    gamestate.gamestateData.team.team_addMember(Programmer(2))
+// //    println(gamestate.toJson())
+// //}

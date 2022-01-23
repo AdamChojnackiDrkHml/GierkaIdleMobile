@@ -4,7 +4,10 @@ import Database.DatabaseException
 import Database.DatabaseUtils
 import GameScreen.gamescreen.GameScreen
 import com.badlogic.gdx.Gdx
+import resources.NotEnoughResourceException
+import resources.ResourceType
 import java.util.concurrent.*
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.thread
 
 /**
@@ -60,6 +63,33 @@ object TaskManager {
                 Logger.logError(e.toString())
             }
         }
+    }
+
+    /**
+     * Initializes new contract.
+     * @param difficulty the difficulty of a contract.
+     */
+    fun initializeContract(difficulty: Int) = GameStateMonitor.handleContractRequest(difficulty)
+
+    fun endContract() {
+        thread(isDaemon = false) {
+            val result : Boolean = GameStateMonitor.finalizeContract()
+            Gdx.app.postRunnable {
+                GameScreen.showContractStatusMessage(
+                    if(result) {
+                        "Contract accomplished!"
+                    } else {
+                        "Contract failed!"
+                    }
+                )
+            }
+        }
+    }
+
+    fun finalize() {
+            taskExecutor.shutdownNow()
+            GameStateMonitor.saveGamestate()
+            Logger.logInfo("Save on exit")
     }
 
     private fun getTaskMap() : MutableMap<String, PeriodicTask> = mutableMapOf(

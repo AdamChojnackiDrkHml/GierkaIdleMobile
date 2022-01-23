@@ -1,9 +1,6 @@
 package GameScreen.gamescreen
 
 import GameScreen.IdleGame
-import GameScreen.screenHeight
-import GameScreen.screenWidth
-import com.badlogic.gdx.Game
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.Screen
@@ -12,30 +9,31 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.TextureRegion
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer
+import com.badlogic.gdx.math.Rectangle
 import com.badlogic.gdx.math.Vector2
-import com.badlogic.gdx.scenes.scene2d.Actor
-import com.badlogic.gdx.scenes.scene2d.InputEvent
-import com.badlogic.gdx.scenes.scene2d.InputListener
-import com.badlogic.gdx.scenes.scene2d.Stage
+import com.badlogic.gdx.scenes.scene2d.*
 import com.badlogic.gdx.scenes.scene2d.ui.Label
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
 import concurrency.GameStateMonitor
 import concurrency.GameStateMonitor.incrementClickCount
+import concurrency.TaskManager
 import resources.NotEnoughResourceException
 import ktx.actors.onClick
 import ktx.app.clearScreen
 import ktx.scene2d.*
 import utils.shop.Programmer
 import utils.shop.Shop
-import java.awt.Rectangle
+
+val screenWidth = Gdx.graphics.width
+val screenHeight = Gdx.graphics.height
 
 /**
  * Actual game screen, shows after successful user login
  * @param game Instance of IdleGame class
  */
 class GameScreen(private val game: IdleGame) : Screen {
-    // temporary shop instance, might have to be moved elsewhere later
     private val shop = Shop().apply { generateProgrammerOffer(3, 1) }
     private lateinit var upgradeNames : Array<String>
     private lateinit var upgrades : Triple<IntArray, IntArray, IntArray>
@@ -50,10 +48,13 @@ class GameScreen(private val game: IdleGame) : Screen {
     private val uiPadding = 10f
     private val scalingRatio = laptopWidth.toFloat() / textureSize.toFloat()
     private var stage = Stage()
+    private var contractStage = Stage()
+    private var shapeRenderer = ShapeRenderer()
     private var batch = game.batch
     private var camera = game.camera
-    private val laptopTexture = scaleTexture(Gdx.files.internal("assets/T_LaptopGrey.png"), scalingRatio)
-    private val laptopBackgroundTexture = scaleTexture(Gdx.files.internal("assets/T_BackgroundDefaultBinary.png"), scalingRatio)
+    private val laptopTexture = scaleTexture(Gdx.files.internal("Images/Textures/Computers/T_LaptopGrey.png"), scalingRatio)
+    private val laptopBackgroundTexture = scaleTexture(Gdx.files.internal("Images/Textures/ComputerWallpapers/T_BackgroundDefaultBinary.png"), scalingRatio)
+    private val contractBackgroundTexture = scaleTexture(Gdx.files.internal("Images/Textures/ComputerWallpapers/T_BackgroundContractCursors.png"), scalingRatio)
     private val lineTexture = scaleTexture(Gdx.files.internal("Images/Textures/Icons/T_IconCode.png"), 0.07f)
     private val cashTexture = scaleTexture(Gdx.files.internal("Images/Textures/Icons/T_IconCash.png"), 0.07f)
     private val coffeeTexture = scaleTexture(Gdx.files.internal("Images/Textures/Icons/T_IconCoffee.png"), 0.07f)
@@ -64,12 +65,29 @@ class GameScreen(private val game: IdleGame) : Screen {
     private val yeskiaTexture = scaleTexture(Gdx.files.internal("Images/Textures/Logos/T_LogoYeskia.png"), 0.1f)
     private val programmerTextureFilenames = arrayOf("Images/Textures/Programmers/T_Programmer01.png", "Images/Textures/Programmers/T_Programmer02.png", "Images/Textures/Programmers/T_Programmer03.png")
     private val logoTextures = arrayOf(bananaTexture, doodleTexture, dyTexture, macroHardTexture, yeskiaTexture)
+    private val contractNames = arrayOf("Banana", "Doodle", "dy", "MacroHard", "Yeskia")
+    private val difficulties = arrayOf("easy", "medium", "hard")
     private var laptopRect : Rectangle
     private val colourOfCode = Color.valueOf("#7200D2")
     private val colourOfCash = Color.valueOf("#D5D545")
     private val colourOfCoffee = Color.valueOf("#641D00")
     private var teamIncome = 0
     private var timeOfPurchase : Long = 0
+    private var contractProgress : Float = 30f
+    private val contractLogoX : Float = screenWidth / 2f - 155f
+    private val contractLogoY : Float = screenHeight / 2f + 70f
+    private var contractBarHeight : Float = 25f
+    private var contractBarWidth : Float = 200f
+    private lateinit var currentContract : Texture
+    private var contractRunning = false
+    private var contractCosts = arrayOf(1000, 1000, 1000)
+    private var contractTime : Long = 0L
+
+    /**
+     *
+     * Graphical elements - scene2d widgets
+     *
+     */
 
     private var lineLabel: Label = scene2d.label(text = currentLines.toString()) {
         color = colourOfCode
@@ -274,6 +292,21 @@ class GameScreen(private val game: IdleGame) : Screen {
         add(errorLabel)
     }
 
+    private var contractStatusLabel = scene2d.label(text = "") {
+        color = Color.FOREST
+    }
+    /**
+     * Info after finishing contract
+     */
+    private val contractStatusTable = scene2d.table {
+        width = 300f
+        height = 100f
+        x = (screenWidth - width) / 2
+        y = 0f
+        add(contractStatusLabel)
+    }
+
+
     /**
      * Contains the background image of the game screen
      */
@@ -282,6 +315,12 @@ class GameScreen(private val game: IdleGame) : Screen {
         setFillParent(true)
     }
 
+    private val contractDifficultyLabel = scene2d.label(text = "Difficulty: easy") {
+        color = Color.SKY
+    }
+    private val contractNameLabel = scene2d.label(text = "Contract: Doodle") {
+        color = Color.SKY
+    }
     private val contractCompletionLabel = scene2d.label(text = "0%") {
         color = Color.FOREST
     }
@@ -296,16 +335,19 @@ class GameScreen(private val game: IdleGame) : Screen {
      */
     private val currentContractTable = scene2d.table {
         isVisible = false
-        height = 50f
-        x = contractTable.x + contractTable.width + uiPadding
-        y = screenHeight - height - uiPadding
+        x = contractLogoX + 225f
+        y = contractLogoY + 30f
         table {
-            add(contractCompletionLabel)
-            add(contractTimeLabel)
+            add(contractNameLabel)
+            row()
+            add(contractDifficultyLabel)
         }
         row()
-        add(contractProgressBar).width(200f)
-
+        table {
+            add(contractCompletionLabel)
+            row()
+            add(contractTimeLabel)
+        }
     }
 
     /**
@@ -320,11 +362,17 @@ class GameScreen(private val game: IdleGame) : Screen {
         onClick { exitGame() }
     }
 
+    /**
+     *
+     * Methods
+     *
+     */
+
     init {
         stage.addActor(backgroundTable)
-        stage.addActor(currentContractTable)
         stage.addActor(scoreTable)
         stage.addActor(errorTable)
+        stage.addActor(contractStatusTable)
         stage.addActor(upgradeTable)
         stage.addActor(contractButton)
         stage.addActor(contractTable)
@@ -333,6 +381,7 @@ class GameScreen(private val game: IdleGame) : Screen {
         stage.addActor(teamButton)
         stage.addActor(teamTable)
         stage.addActor(exitButton)
+        contractStage.addActor(currentContractTable)
         laptopRect = getLaptopRectangle()
     }
 
@@ -343,7 +392,13 @@ class GameScreen(private val game: IdleGame) : Screen {
         caffeineOffers = shop.showCaffeineOffer()
         programmers = shop.showProgrammerOffer()
 
+        for(i in programmers.indices) {
+            val filename = programmerTextureFilenames[(programmerTextureFilenames.indices).random()]
+            programmers[i].setImageFilename(filename)
+        }
+
         showProgrammers()
+        showContracts()
     }
 
     override fun show() {
@@ -351,13 +406,16 @@ class GameScreen(private val game: IdleGame) : Screen {
     }
 
     override fun render(delta: Float) {
+        contractProgress = contractProgressBar.value / contractProgressBar.maxValue * 100
         clearScreen(0f, 0f, 0f, 0f)
         stage.act()
         stage.draw()
         camera.update()
         batch.projectionMatrix = camera.combined
+        shapeRenderer.projectionMatrix = camera.combined
 
         updateDisplay()
+
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
             val position = Vector2(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
             if (laptopRect.x <= position.x && position.x <= laptopRect.x + laptopWidth) {
@@ -368,13 +426,57 @@ class GameScreen(private val game: IdleGame) : Screen {
         }
 
         batch.begin()
-        batch.draw(laptopTexture, laptopRect.x.toFloat(), laptopRect.y.toFloat())
-        batch.draw(laptopBackgroundTexture, laptopRect.x.toFloat(), laptopRect.y.toFloat())
+        batch.draw(laptopTexture, laptopRect.x, laptopRect.y)
+        if(contractRunning) {
+            contractCompletionLabel.setText(String.format("%.2f", contractProgress) + "%")
+            batch.draw(contractBackgroundTexture, laptopRect.x, laptopRect.y)
+            batch.draw(currentContract, contractLogoX, contractLogoY)
+        }
+        else batch.draw(laptopBackgroundTexture, laptopRect.x, laptopRect.y)
         batch.end()
+
+        if(contractRunning) {
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+            shapeRenderer.color = Color.GOLDENROD
+            shapeRenderer.rect((screenWidth - contractBarWidth) / 2, screenHeight / 2 - 30f, contractBarWidth * contractProgress / 100, contractBarHeight)
+            shapeRenderer.color = Color.BLACK
+            shapeRenderer.rect((screenWidth - contractBarWidth) / 2 + contractBarWidth * contractProgress / 100, screenHeight / 2 - 30f, contractBarWidth * (1 - contractProgress / 100), contractBarHeight)
+            shapeRenderer.end()
+        }
+
+        if(!contractRunning) {
+            currentContractTable.isVisible = false
+        }
+
+        if(contractTime > 0L && System.currentTimeMillis() - contractTime <= 30000L) {
+            contractTimeLabel.setText("")
+            val total = 30000L - (System.currentTimeMillis() - contractTime)
+            val sec = total / 1000L
+            val millis = total - sec * 1000L
+            contractTimeLabel.setText(String.format("%02d:%03d", sec, millis))
+        } else if(contractTime > 0L && System.currentTimeMillis() - contractTime >= 30000L) {
+            TaskManager.endContract()
+            contractTime = 0L
+            contractProgress = 0f
+            contractRunning = false
+        }
+
+        contractStage.act()
+        contractStage.draw()
 
         if(timeOfPurchase > 0 && System.currentTimeMillis() - timeOfPurchase >= 2000) {
             upgradeLabel.setText("")
             timeOfPurchase = 0
+        }
+
+        if(messageTime > 0 && System.currentTimeMillis() - messageTime >= 2000) {
+            contractMessage = ""
+            messageTime = 0
+        }
+
+        if(errorTime > 0 && System.currentTimeMillis() - errorTime >= 2000) {
+            errorMessage = ""
+            errorTime = 0
         }
     }
 
@@ -398,11 +500,12 @@ class GameScreen(private val game: IdleGame) : Screen {
         dyTexture.dispose()
         macroHardTexture.dispose()
         yeskiaTexture.dispose()
+        TaskManager.finalize()
     }
 
     /**
-     * Scales texture from fileHandle in given ratio
-     * @param fileHandle FileHandle holding texture to be scaled
+     * Scales texture from fileHandle to given ratio
+     * @param fileHandle FileHandle of texture to be scaled
      * @param scalingRatio Scaling proportion float
      */
     private fun scaleTexture(fileHandle: FileHandle, scalingRatio: Float) : Texture {
@@ -423,15 +526,15 @@ class GameScreen(private val game: IdleGame) : Screen {
      */
     private fun getLaptopRectangle() : Rectangle {
         val rect = Rectangle()
-        rect.width = laptopWidth
-        rect.height = laptopHeight
-        rect.x = (screenWidth - laptopWidth) / 2
-        rect.y = (screenHeight - laptopHeight) / 2
+        rect.width = laptopWidth.toFloat()
+        rect.height = laptopHeight.toFloat()
+        rect.x = (screenWidth - laptopWidth) / 2f
+        rect.y = (screenHeight - laptopHeight) / 2f
         return rect
     }
 
     /**
-     *  Returns TextureRegionDrawable of solid colour (e.g. to fill a table background)
+     *  Returns TextureRegionDrawable of solid colour (e.g. to fill table background)
      *  @param colour Color to be set
      *  @return TextureRegionDrawable filled with solid colour to be set as ui element background
      */
@@ -453,26 +556,33 @@ class GameScreen(private val game: IdleGame) : Screen {
         cashLabel.setText(currentCash.toString())
         caffeineLabel.setText(currentCaffeine.toString())
         errorLabel.setText(errorMessage)
+        contractStatusLabel.setText(contractMessage)
         teamIncomeLabel.setText("+$teamIncome/s")
     }
 
     private fun showContractMenu() {
-        contractTable.isVisible = !contractTable.isVisible
-        if(contractTable.isVisible) showContracts()
+        if(!contractRunning) {
+            showContracts()
+            contractTable.isVisible = !contractTable.isVisible
+        }
     }
 
-    //TODO contracts
     private fun showContracts() {
-        val difficulties = arrayOf("easy", "medium", "hard")
+        contractOfferTable.clearChildren()
+
         for(i in 0..9) {
             contractOfferTable.add(scene2d.button {
-                color = Color.valueOf("#A02020")
+                color = if(contractCosts[i % 3] <= currentLines) Color.valueOf("#FF5D6E") else Color.GRAY
                 image(logoTextures[i % 5])
-                onClick { startContract() }
+                onClick { startContract(i % 3, i % 5) }
             }).width(80f).height(80f)
             contractOfferTable.add(scene2d.table {
-                background = getBackgroundColorTRD(Color.valueOf("#A02020"))
+                color = if(contractCosts[i % 3] <= currentLines) Color.valueOf("#FF5D6E") else Color.GRAY
                 label(text = "Difficulty: " + difficulties[i % 3]) {
+                    setOrigin(Align.left)
+                }
+                row()
+                label(text = "Cost: " + contractCosts[i % 3]) {
                     setOrigin(Align.left)
                 }
             }).width(195f).height(75f)
@@ -491,9 +601,10 @@ class GameScreen(private val game: IdleGame) : Screen {
         val tiers = upgrades.first
         val values = upgrades.second
         val costs = upgrades.third
+
         shopOfferTable.clearChildren()
 
-        for(i in upgradeNames.indices) {
+        for(i in upgrades.first.indices) {
             shopOfferTable.add(scene2d.button {
                 color = if(costs[i] <= currentCash) Color.OLIVE else Color.GRAY
                 label(text = upgradeNames[i].substring(0, upgradeNames[i].indexOf('\n')))
@@ -570,11 +681,9 @@ class GameScreen(private val game: IdleGame) : Screen {
         shopOfferTable.clearChildren()
 
         for(i in programmers.indices) {
-            val filename = programmerTextureFilenames[(programmerTextureFilenames.indices).random()]
-            programmers[i].setImageFilename(filename)
             shopOfferTable.add(scene2d.button {
                 color = if(programmers[i].getPrice() <= currentCash) Color.FOREST else Color.GRAY
-                image(TextureRegionDrawable(TextureRegion(scaleTexture(Gdx.files.internal(filename), 0.1f))))
+                image(TextureRegionDrawable(TextureRegion(scaleTexture(Gdx.files.internal(programmers[i].getImageFilename()), 0.1f))))
                 onClick { purchaseProgrammer(i) }
             }).width(125f).height(125f)
             shopOfferTable.add(scene2d.table {
@@ -603,7 +712,6 @@ class GameScreen(private val game: IdleGame) : Screen {
         if(teamTable.isVisible) showTeamMembers()
     }
 
-    //TODO pobieranie listy czlonkow zespolu z watku
     private fun showTeamMembers() {
         teamMembers = GameStateMonitor.getTeamMembers()
         teamIncome = 0
@@ -648,18 +756,15 @@ class GameScreen(private val game: IdleGame) : Screen {
         teamIncomeLabel.setText(teamIncome.toString())
     }
 
-    //TODO funkcje wywolywane przez onClick przedmiotow w sklepie
     private fun purchaseUpgrade(itemNum : Int) {
         val upgradeName = upgradeNames[itemNum]
         try {
             upgrades.run {
-                GameStateMonitor.buyUpgrade(second[itemNum], third[itemNum])
+                GameStateMonitor.buyUpgrade(itemNum, third[itemNum])
             }
             upgradeLabel.setText(upgradeName.substring(0, upgradeName.indexOf('\n')) + " purchased!")
-            shop.incrementUpgradeTier(itemNum)
+            upgrades.first[itemNum]++
             timeOfPurchase = System.currentTimeMillis()
-            upgradeNames = shop.getUpgradeNamesList()
-            upgrades = shop.showUpgradesOffer()
             showUpgrades()
         } catch (e : NotEnoughResourceException) {
             showErrorMessage(e.message)
@@ -696,10 +801,40 @@ class GameScreen(private val game: IdleGame) : Screen {
         }
     }
 
-    //TODO funkcja rozpoczynajaca kontrakt
-    private fun startContract() {
-        contractTable.isVisible = false
-        currentContractTable.isVisible = !currentContractTable.isVisible
+    private fun startContract(difficulty: Int, itemNum: Int) {
+        try {
+            TaskManager.initializeContract(difficulty)
+            contractTime = System.currentTimeMillis()
+            contractTable.isVisible = false
+            contractRunning = true
+            currentContract = logoTextures[itemNum]
+            currentContractTable.isVisible = true
+            contractNameLabel.setText("Contract: ${contractNames[itemNum]}")
+            contractDifficultyLabel.setText("Difficulty: ${difficulties[difficulty]}")
+        } catch(e : NotEnoughResourceException) {
+            showErrorMessage(e.message)
+        }
+    }
+
+    fun updateContractCompletionLabel(progress : Float) {
+        contractProgressBar.value = progress
+        if(progress >= 1f) {
+            TaskManager.endContract()
+            contractTime = 0L
+            contractProgress = 0f
+            contractRunning = false
+        }
+    }
+
+    fun updateContractCosts(costs: Triple<Int, Int, Int>) {
+        contractCosts[0] = costs.first
+        contractCosts[1] = costs.second
+        contractCosts[2] = costs.third
+        showContracts()
+    }
+
+    fun updateUpgradeOffer(upgrades: Triple<IntArray, IntArray, IntArray>) {
+        this.upgrades = upgrades
     }
 
     private fun exitGame() {
@@ -711,6 +846,10 @@ class GameScreen(private val game: IdleGame) : Screen {
         var currentCash = 0
         var currentCaffeine = 0
         var errorMessage = ""
+        var contractMessage = ""
+        var messageTime = 0L
+        var errorTime = 0L
+
 
         fun updateCurrentLineCount(count: Int) {
             currentLines = count
@@ -726,6 +865,12 @@ class GameScreen(private val game: IdleGame) : Screen {
 
         fun showErrorMessage(msg: String) {
             errorMessage = msg
+            errorTime = System.currentTimeMillis()
+        }
+
+        fun showContractStatusMessage(msg: String) {
+            contractMessage = msg
+            messageTime = System.currentTimeMillis()
         }
     }
 }
