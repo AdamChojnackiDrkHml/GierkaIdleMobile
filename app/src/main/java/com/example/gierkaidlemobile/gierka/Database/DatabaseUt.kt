@@ -5,7 +5,7 @@ import com.mongodb.client.model.Filters
 import gamestate.Gamestate
 import gamestate.GamestateData
 import org.bson.Document
-import org.json.JSONObject
+import org.bson.json.JsonObject
 import java.math.BigInteger
 import java.security.MessageDigest
 
@@ -49,16 +49,16 @@ object DatabaseUtils {
      * @return JsonObject with logged user gamestate
      * Throws an error if no gamestate is found
      */
-    fun database_getGamestate(): JSONObject {
+    fun database_getGamestate(): JsonObject {
 
-        return JSONObject(Gamestate().toJson())
+        return JsonObject(Gamestate().toJson())
     }
 
     /**
      * @param gamestate JsonObject with logged user gamestate
      * Updates gamestate record in database for current user
      */
-    fun database_updateGamestate(gamestate: JSONObject) {
+    fun database_updateGamestate(gamestate: JsonObject) {
     }
 
     /**
