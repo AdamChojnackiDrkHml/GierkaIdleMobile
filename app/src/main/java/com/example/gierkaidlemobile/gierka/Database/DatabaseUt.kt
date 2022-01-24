@@ -1,12 +1,11 @@
 package Database
 
-import com.mongodb.ConnectionString
-import com.mongodb.MongoClientSettings
-import com.mongodb.client.MongoClients
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
+import gamestate.Gamestate
+import gamestate.GamestateData
 import org.bson.Document
-import org.bson.json.JsonObject
+import org.json.JSONObject
 import java.math.BigInteger
 import java.security.MessageDigest
 
@@ -22,7 +21,6 @@ object DatabaseUtils {
      * Checks if database instance was created and if not, tries to do so as admin
      */
     fun database_login(){
-        database_init_admin()
     }
 
 
@@ -34,17 +32,6 @@ object DatabaseUtils {
      */
     fun database_login(login: String, password: String) {
 
-        val users = database_instance!!.getCollection("Users")
-        val user = users.find(Filters.eq("login", login)).first()
-
-
-        if (user == null || database_hashString(password) != user["password"]) {
-            throw DatabaseException("Inccorrect data")
-        }
-        database_login_user()
-
-
-        this.login = login
     }
 
 
@@ -55,15 +42,6 @@ object DatabaseUtils {
      * Adds new user to database
      */
     fun database_createUser(login: String, password: String) {
-        val users = database_instance!!.getCollection("Users")
-        val user = users.find(Filters.eq("login", login)).first()
-        if (user != null) {
-            throw DatabaseException("User already exists")
-        }
-
-        val newUser = Document("login", login).append("password", database_hashString(password))
-
-        users.insertOne(newUser)
 
     }
 
@@ -71,26 +49,16 @@ object DatabaseUtils {
      * @return JsonObject with logged user gamestate
      * Throws an error if no gamestate is found
      */
-    fun database_getGamestate(): JsonObject {
+    fun database_getGamestate(): JSONObject {
 
-        val gamestateCol = database_instance!!.getCollection("Gamestate")
-        val gamestateDoc = gamestateCol.find(Filters.eq("login", login)).first()
-            ?: throw DatabaseException("Database error, no gamestate saved yet")
-
-        val gamestate: Document = gamestateDoc.get("gamestate", Document::class.java)
-        return JsonObject(gamestate.toJson())
+        return JSONObject(Gamestate().toJson())
     }
 
     /**
      * @param gamestate JsonObject with logged user gamestate
      * Updates gamestate record in database for current user
      */
-    fun database_updateGamestate(gamestate: JsonObject) {
-        val updateDoc = Document("login", login).append("gamestate", Document.parse(gamestate.json))
-
-        val gamestateCol = database_instance!!.getCollection("Gamestate")
-        gamestateCol.deleteOne(Filters.eq("login", login))
-        gamestateCol.insertOne(updateDoc)
+    fun database_updateGamestate(gamestate: JSONObject) {
     }
 
     /**
@@ -99,19 +67,7 @@ object DatabaseUtils {
      * Connect to database with param given user type. Then save database instance in database_instance
      */
     private fun database_connect(isUserLogging: Boolean): Boolean {
-        val conString =
-            if (isUserLogging) "mongodb+srv://User:1234@gierkaidle.i3wqr.mongodb.net" else "mongodb+srv://Mod:upT-12s@gierkaidle.i3wqr.mongodb.net/"
-        val connectionString = ConnectionString(conString)
-        val settings = MongoClientSettings.builder()
-            .applyConnectionString(connectionString)
-            .build()
-        val mongoClient = MongoClients.create(settings)
-        return try {
-            database_instance = mongoClient.getDatabase("Gierka")
-            true
-        } catch (e: Exception) {
-            false
-        }
+        return true
     }
 
 

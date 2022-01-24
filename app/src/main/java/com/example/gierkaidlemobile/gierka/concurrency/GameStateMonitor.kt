@@ -5,7 +5,7 @@ import Database.DatabaseUtils
 import GameScreen.IdleGame
 import GameScreen.gamescreen.GameScreen
 import gamestate.Gamestate
-import org.bson.json.JsonObject
+import org.json.JSONObject
 import resources.NotEnoughResourceException
 import resources.ResourceCount
 import resources.ResourceType
@@ -62,9 +62,9 @@ object GameStateMonitor {
      * Saves current game state to the database.
      */
     fun saveGamestate() {
-        val json: JsonObject
+        val json: JSONObject
         gamestateLock.withLock {
-            json = JsonObject(gamestate.toJson())
+            json = JSONObject(gamestate.toJson())
         }
         DatabaseUtils.database_updateGamestate(json)
     }
@@ -74,7 +74,7 @@ object GameStateMonitor {
      */
     fun restoreGamestate() {
         try {
-            val jsonString: String = DatabaseUtils.database_getGamestate().json
+            val jsonString: String = DatabaseUtils.database_getGamestate().toString()
             var upgradesOffer : Triple<IntArray, IntArray, IntArray>
             gamestateLock.withLock {
                 gamestate.fromJson(jsonString)
