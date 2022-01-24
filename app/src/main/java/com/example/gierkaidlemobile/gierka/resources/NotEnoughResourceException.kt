@@ -6,5 +6,6 @@ class NotEnoughResourceException(private val type : ResourceType) : Exception() 
             ResourceType.CODE -> "Not enough lines of code."
             ResourceType.CASH -> "Not enough cash."
             ResourceType.CAFFEINE -> "Not enough caffeine."
+            ResourceType.CASH_OR_SPACE -> "Not enough cash or space in team."
         }
 }

@@ -124,7 +124,7 @@ object GameStateMonitor {
         if (!gamestateLock.withLock {
                 gamestate.hireProgrammer(programmer)
             }) {
-            throw NotEnoughResourceException(ResourceType.CASH)
+            throw NotEnoughResourceException(ResourceType.CASH_OR_SPACE)
         }
     }
 

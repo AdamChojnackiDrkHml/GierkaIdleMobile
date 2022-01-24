@@ -11,6 +11,7 @@
         android:theme="@style/Theme.GierkaIdleMobile">
         <activity
             android:name="GameScreen.MainActivity"
+            android:configChanges="keyboard|keyboardHidden|orientation"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
