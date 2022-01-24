@@ -29,7 +29,7 @@ object TaskManager {
      */
     fun asyncConnectToDB() {
         asyncConnection = taskExecutor.submit({
-            DatabaseUtils.database_login()
+            //DatabaseUtils.database_login()
         }, true)
     }
 
@@ -75,13 +75,11 @@ object TaskManager {
         thread(isDaemon = false) {
             val result : Boolean = GameStateMonitor.finalizeContract()
             Gdx.app.postRunnable {
-                GameScreen.showContractStatusMessage(
-                    if(result) {
-                        "Contract accomplished!"
-                    } else {
-                        "Contract failed!"
-                    }
-                )
+                if(result) {
+                    GameScreen.showContractStatusMessage("Contract accomplished!")
+                } else {
+                    GameScreen.showErrorMessage("Contract failed!")
+                }
             }
         }
     }

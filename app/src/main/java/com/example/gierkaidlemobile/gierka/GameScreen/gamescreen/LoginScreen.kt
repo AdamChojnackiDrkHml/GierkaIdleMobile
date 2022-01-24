@@ -88,7 +88,7 @@ class LoginScreen(private val game: IdleGame) : Screen {
         clearTextFields()
 
         try {
-            DatabaseUtils.database_login(login, password)
+            //DatabaseUtils.database_login(login, password)
             TaskManager.startTasks()
             game.setGameScreen("game")
         } catch(e: Exception) {

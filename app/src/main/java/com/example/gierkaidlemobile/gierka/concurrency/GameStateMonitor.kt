@@ -74,10 +74,23 @@ object GameStateMonitor {
      */
     fun restoreGamestate() {
         try {
-            val jsonString: String = DatabaseUtils.database_getGamestate().toString()
-            var upgradesOffer : Triple<IntArray, IntArray, IntArray>
+            val jsonString: String = DatabaseUtils.database_getGamestate().json
             gamestateLock.withLock {
                 gamestate.fromJson(jsonString)
+            }
+        } catch (e: DatabaseException) {
+            Logger.logInfo("No save yet, set default values")
+            gamestateLock.withLock {
+                gamestate.setDefaultValues()
+            }
+        } catch (e: Exception) {
+            Logger.logError(e.toString())
+            gamestateLock.withLock {
+                gamestate.setDefaultValues()
+            }
+        } finally {
+            var upgradesOffer : Triple<IntArray, IntArray, IntArray>
+            gamestateLock.withLock {
                 val upgradesArray = gamestate.gamestateData.upgrades
                 val size = upgradesArray.size
                 upgradesOffer = Triple(IntArray(size), IntArray(size), IntArray(size))
@@ -91,16 +104,6 @@ object GameStateMonitor {
             }
             (game.screen as GameScreen).updateUpgradeOffer(upgradesOffer)
             notifyCostsChanged()
-        } catch (e: DatabaseException) {
-            Logger.logInfo("No save yet, set default values")
-            gamestateLock.withLock {
-                gamestate.setDefaultValues()
-            }
-        } catch (e: Exception) {
-            Logger.logError(e.toString())
-            gamestateLock.withLock {
-                gamestate.setDefaultValues()
-            }
         }
     }
 

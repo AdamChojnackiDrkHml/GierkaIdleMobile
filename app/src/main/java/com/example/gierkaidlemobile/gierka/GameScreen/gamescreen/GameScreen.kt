@@ -134,7 +134,7 @@ class GameScreen(private val game: IdleGame) : Screen {
         onClick { showContractMenu() }
     }
     private val contractOfferTable = scene2d.table {
-        background = getBackgroundColorTRD(Color.valueOf("#401010"))
+        background = getBackgroundColorTRD(Color.DARK_GRAY)
     }
     private val contractScrollPane = scene2d.scrollPane {
         addActor(contractOfferTable)
@@ -577,7 +577,6 @@ class GameScreen(private val game: IdleGame) : Screen {
                 onClick { startContract(i % 3, i % 5) }
             }).width(80f).height(80f)
             contractOfferTable.add(scene2d.table {
-                color = if(contractCosts[i % 3] <= currentLines) Color.valueOf("#FF5D6E") else Color.GRAY
                 label(text = "Difficulty: " + difficulties[i % 3]) {
                     setOrigin(Align.left)
                 }
